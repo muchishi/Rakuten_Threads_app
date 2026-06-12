@@ -1,8 +1,8 @@
 import os
-import sqlite3
 import time
 from dotenv import load_dotenv
 from google import genai
+from supabase_client import supabase
 
 load_dotenv()
 
@@ -10,55 +10,56 @@ client = genai.Client(
     api_key=os.getenv("GEMINI_API_KEY")
 )
 
-conn = sqlite3.connect("rakuten.db")
-cursor = conn.cursor()
-
-cursor.execute("""
-SELECT
-    item_code,
-    item_name,
-    price,
-    review_count,
-    review_average,
-    point_rate,
-    affiliate_rate,
-    keyword,
-    item_url,
-    shop_name,
-    item_url,
-    image_url
-FROM products
-WHERE item_code NOT IN (
-    SELECT item_code
-    FROM posted_products
+posted = (
+    supabase.table("posted_products")
+    .select("item_code")
+    .execute()
 )
-ORDER BY
-(
-    review_count * 0.3 +
-    review_average * 100 +
-    point_rate * 50 +
-    affiliate_rate * 100
-) DESC
-LIMIT 1
-""")
 
-# 投稿済み商品を除外して、レビュー件数、評価、ポイント還元率、アフィリエイト率の総合スコアが高い順に1件取得
-item = cursor.fetchone()
+posted_codes = {
+    row["item_code"]
+    for row in posted.data
+}
 
-conn.close()
+products = (
+    supabase.table("products")
+    .select("*")
+    .execute()
+)
 
-item_code = item[0]
-item_name = item[1]
-price = item[2]
-review_count = item[3]
-review_average = item[4]
-point_rate = item[5]
-affiliate_rate = item[6]
-keyword = item[7]
-item_url = item[8]
-shop_name = item[9]
-item_url = item[10]
-image_url = item[11]
+candidates = [
+    p
+    for p in products.data
+    if p["item_code"] not in posted_codes
+]
+
+def calc_score(item):
+    return (
+        item["review_count"] * 0.3
+        + item["review_average"] * 100
+        + item["point_rate"] * 50
+        + item["affiliate_rate"] * 100
+    )
+
+if not candidates:
+    raise Exception("未投稿商品がありません")
+
+item = max(
+    candidates,
+    key=calc_score
+)
+
+item_code = item["item_code"]
+item_name = item["item_name"]
+price = item["price"]
+review_count = item["review_count"]
+review_average = item["review_average"]
+point_rate = item["point_rate"]
+affiliate_rate = item["affiliate_rate"]
+keyword = item["keyword"]
+item_url = item["item_url"]
+shop_name = item["shop_name"]
+image_url = item["image_url"]
 
 
 def get_category(keyword):
@@ -150,24 +151,6 @@ main_prompt = f"""
 自然な日常投稿として1つだけ出力してください。
 """
 
-# reply_prompt = f"""
-# あなたは楽天アフィリエイト投稿を管理しています。
-
-# 以下の商品情報をもとに、Threadsのリプライ用文章を作成してください。
-
-# 商品名: {item_name}
-# 価格: {price}円
-
-# 条件
-# ・1〜2行
-# ・必ず「楽天のリンクはこちら（PR）」を含める
-# ・煽り禁止
-# ・シンプルに導線だけ
-
-# 出力例：
-# 楽天のリンクはこちら（PR)
-
-# """
 reply_text = f"""楽天のリンクはこちら（PR）\n\n{item_url}"""
 
 
@@ -217,25 +200,17 @@ print(main_text)
 print("===== リプ投稿 =====")
 print(reply_text)
 
-conn = sqlite3.connect("rakuten.db")
-cursor = conn.cursor()
-
-cursor.execute(
-    """
-INSERT OR IGNORE INTO drafts (
-    item_code,
-    main_post,
-    reply_post,
-    item_url,
-    image_url
-)
-VALUES (?, ?, ?, ?, ?)
-""",
-    (item_code, main_text, reply_text, item_url, image_url),
-)
-
-conn.commit()
-conn.close()
+supabase.table("drafts").upsert(
+    {
+        "item_code": item_code,
+        "main_post": main_text,
+        "reply_post": reply_text,
+        "item_url": item_url,
+        "image_url": image_url,
+        "status": "pending",
+        "post_type": "product",
+    }
+).execute()
 
 print("draft保存完了")
 

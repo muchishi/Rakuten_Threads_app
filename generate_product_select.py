@@ -1,9 +1,9 @@
 import os
 import requests
-import sqlite3
 from dotenv import load_dotenv
 import time
 from bs4 import BeautifulSoup
+from supabase_client import supabase
 
 # 環境変数をロード
 load_dotenv()
@@ -37,39 +37,34 @@ KEYWORDS = [
     "サプリメント",
 ]
 
-# データベースに接続してカーソルを作成
-conn = sqlite3.connect("rakuten.db")
-cursor = conn.cursor()
-
-
 def get_og_image(url, timeout=6):
-    try:
-        headers = {
-            "User-Agent": "Mozilla/5.0",
-            "Accept-Language": "ja-JP,ja;q=0.9",
-            "Cache-Control": "no-cache",
-        }
+    # try:
+    #     headers = {
+    #         "User-Agent": "Mozilla/5.0",
+    #         "Accept-Language": "ja-JP,ja;q=0.9",
+    #         "Cache-Control": "no-cache",
+    #     }
 
-        res = requests.get(url, headers=headers, timeout=timeout)
-        res.raise_for_status()
+    #     res = requests.get(url, headers=headers, timeout=timeout)
+    #     res.raise_for_status()
 
-        soup = BeautifulSoup(res.text, "html.parser")
+    #     soup = BeautifulSoup(res.text, "html.parser")
 
-        # OG優先
-        og = soup.find("meta", property="og:image")
-        if og and og.get("content"):
-            return og["content"]
+    #     # OG優先
+    #     og = soup.find("meta", property="og:image")
+    #     if og and og.get("content"):
+    #         return og["content"]
 
-        # Twitterカードも拾う（重要）
-        tw = soup.find("meta", attrs={"name": "twitter:image"})
-        if tw and tw.get("content"):
-            return tw["content"]
+    #     # Twitterカードも拾う（重要）
+    #     tw = soup.find("meta", attrs={"name": "twitter:image"})
+    #     if tw and tw.get("content"):
+    #         return tw["content"]
 
-        print("⚠️ OG画像なし")
-        return None
+    #     print("⚠️ OG画像なし")
+    #     return None
 
-    except Exception as e:
-        print(f"⚠️ OG取得失敗: {e}")
+    # except Exception as e:
+    #     print(f"⚠️ OG取得失敗: {e}")
         return None
 
 
@@ -122,43 +117,22 @@ for keyword in KEYWORDS:
 
         review_average = item.get("itemAverageRating") or item.get("reviewAverage") or 0
 
-        cursor.execute(
-            """
-            INSERT OR IGNORE INTO products (
-                item_code,
-                item_name,
-                price,
-                review_count,
-                review_average,
-                point_rate,
-                affiliate_rate,
-                shop_name,
-                genre_id,
-                keyword,
-                item_url,
-                image_url
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                item["itemCode"],
-                item["itemName"],
-                item["itemPrice"],
-                item["reviewCount"],
-                review_average,
-                item["pointRate"],
-                item["affiliateRate"],
-                item["shopName"],
-                item["genreId"],
-                keyword,
-                item["itemUrl"],
-                image_url,
-            ),
-        )
-
-# データベースへの変更を保存して接続を閉じる
-conn.commit()
-conn.close()
+        supabase.table("products").upsert(
+            {
+                "item_code": item["itemCode"],
+                "item_name": item["itemName"],
+                "price": item["itemPrice"],
+                "review_count": item["reviewCount"],
+                "review_average": review_average,
+                "point_rate": item["pointRate"],
+                "affiliate_rate": item["affiliateRate"],
+                "shop_name": item["shopName"],
+                "genre_id": item["genreId"],
+                "keyword": keyword,
+                "item_url": item["itemUrl"],
+                "image_url": image_url,
+            }
+        ).execute()
 
 # 保存完了のメッセージを表示
 print("保存完了")

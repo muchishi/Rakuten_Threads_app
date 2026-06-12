@@ -1,15 +1,13 @@
 import os
-import sqlite3
 import time
 from dotenv import load_dotenv
 from google import genai
+from supabase_client import supabase
 
 load_dotenv()
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-conn = sqlite3.connect("rakuten.db")
-cursor = conn.cursor()
 
 # -----------------------
 # カジュアル投稿プロンプト
@@ -89,21 +87,12 @@ print(post_text)
 # -----------------------
 # DB保存
 # -----------------------
-cursor.execute(
-    """
-INSERT INTO drafts (
-    item_code,
-    main_post,
-    reply_post,
-    item_url,
-    post_type
-)
-VALUES (?, ?, ?, ?, ?)
-""",
-    (None, post_text, "", "", "casual"),
-)
-
-conn.commit()
-conn.close()
+supabase.table("drafts").insert(
+    {
+        "main_post": post_text,
+        "post_type": "casual",
+        "status": "pending",
+    }
+).execute()
 
 print("casual draft保存完了")
