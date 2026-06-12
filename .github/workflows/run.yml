@@ -25,7 +25,7 @@ jobs:
         run: |
           pip list
           python -c "from google import genai; print('OK')"
-          
+
       - name: Create Database
         run: python database.py
 
@@ -36,4 +36,6 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
           THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python run.py

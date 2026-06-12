@@ -3,10 +3,12 @@ import requests
 from dotenv import load_dotenv
 import time
 from bs4 import BeautifulSoup
-from supabase_client import supabase
+from supabase_client import get_supabase
+
+supabase = get_supabase()
 
 # 環境変数をロード
-load_dotenv()
+
 
 # 環境変数から楽天APIの認証情報を取得
 APP_ID = os.getenv("RAKUTEN_APP_ID")

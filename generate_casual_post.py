@@ -2,9 +2,11 @@ import os
 import time
 from dotenv import load_dotenv
 from google import genai
-from supabase_client import supabase
+from supabase_client import get_supabase
 
-load_dotenv()
+supabase = get_supabase()
+
+
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 

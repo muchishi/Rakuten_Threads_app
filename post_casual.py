@@ -1,9 +1,11 @@
 import os
 from dotenv import load_dotenv
 from post_core import create_post
-from supabase_client import supabase
+from supabase_client import get_supabase
 
-load_dotenv()
+supabase = get_supabase()
+
+
 
 USER_ID = os.getenv("THREADS_USER_ID")
 TOKEN = os.getenv("THREADS_ACCESS_TOKEN")
