@@ -25,7 +25,7 @@ print(f"\n===== ポストタイプ =====: {post_type}")
 # -------------------------
 def run_generation():
     if post_type == "product":
-        # run(["generate_product_select.py"])
+        run(["generate_product_select.py"])
         run(["generate_product_post.py"])
 
     elif post_type == "casual":
