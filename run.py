@@ -25,7 +25,7 @@ print(f"\n===== ポストタイプ =====: {post_type}")
 # -------------------------
 def run_generation():
     if post_type == "product":
-        run(["generate_product_select.py"])
+        # run(["generate_product_select.py"])
         run(["generate_product_post.py"])
 
     elif post_type == "casual":
@@ -35,8 +35,8 @@ def run_generation():
 # -------------------------
 # レビュー
 # -------------------------
-def run_review():
-    run(["review_draft.py"])
+# def run_review():
+#     run(["review_draft.py"])
 
 
 # -------------------------
@@ -54,7 +54,7 @@ def run_post():
 # -------------------------
 try:
     run_generation()
-    run_review()
+    # run_review()
     run_post()
 
     print("\n===== 完了 =====")
