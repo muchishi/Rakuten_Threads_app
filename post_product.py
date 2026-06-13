@@ -22,7 +22,12 @@ if not result.data:
     exit()
 
 draft = result.data[0]
-draft_id, item_code, main_post, reply_post, item_url, image_url = draft
+draft_id = draft["id"]
+item_code = draft["item_code"]
+main_post = draft["main_post"]
+reply_post = draft["reply_post"]
+item_url = draft["item_url"]
+image_url = draft["image_url"]
 
 print("投稿対象")
 print(main_post)
