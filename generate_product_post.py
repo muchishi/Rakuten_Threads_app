@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime, timezone, timedelta
 import os
 import time
 from google import genai
@@ -13,8 +13,8 @@ client = genai.Client(
 )
 
 cutoff = (
-    datetime.now(datetime.timezone.utc)
-    - datetime.timedelta(days=30)
+    datetime.now(timezone.utc)
+    - timedelta(days=30)
 ).isoformat()
 
 posted = (
