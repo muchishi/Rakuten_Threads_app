@@ -211,7 +211,8 @@ supabase.table("drafts").upsert(
         "image_url": image_url,
         "status": "pending",
         "post_type": "product",
-    }
+    },
+    on_conflict="item_code"
 ).execute()
 
 print("draft保存完了")
