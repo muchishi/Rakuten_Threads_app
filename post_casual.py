@@ -30,7 +30,8 @@ if not draft:
     print("雑談なし")
     exit()
 
-draft_id, main_post = draft
+draft_id = draft["id"]
+main_post = draft["main_post"]
 
 print("投稿対象")
 print(main_post)
