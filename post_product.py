@@ -1,5 +1,5 @@
+import datetime
 import os
-from dotenv import load_dotenv
 from post_core import create_post
 from supabase_client import get_supabase
 
@@ -79,8 +79,19 @@ print("リプ投稿成功")
 # -------------------
 # 完了処理
 # -------------------
+
+# posted_productsテーブルにitem_codeとposted_atを保存
 supabase.table("drafts").update(
     {"status": "posted"}
 ).eq("id", draft["id"]).execute()
+
+# posted_productsテーブルにitem_codeとposted_atを保存
+supabase.table("posted_products").upsert(
+    {
+        "item_code": item_code,
+        "posted_at": datetime.now(datetime.timezone.utc).isoformat()
+    },
+    on_conflict="item_code"
+).execute()
 
 print("商品投稿完了")

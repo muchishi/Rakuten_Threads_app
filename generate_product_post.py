@@ -1,6 +1,6 @@
+import datetime
 import os
 import time
-from dotenv import load_dotenv
 from google import genai
 from supabase_client import get_supabase
 
@@ -12,9 +12,15 @@ client = genai.Client(
     api_key=os.getenv("GEMINI_API_KEY")
 )
 
+cutoff = (
+    datetime.now(datetime.timezone.utc)
+    - datetime.timedelta(days=30)
+).isoformat()
+
 posted = (
     supabase.table("posted_products")
     .select("item_code")
+    .gte("posted_at", cutoff)
     .execute()
 )
 
