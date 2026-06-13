@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime, timezone
 import os
 from post_core import create_post
 from supabase_client import get_supabase
@@ -89,7 +89,7 @@ supabase.table("drafts").update(
 supabase.table("posted_products").upsert(
     {
         "item_code": item_code,
-        "posted_at": datetime.now(datetime.timezone.utc).isoformat()
+        "posted_at": datetime.now(timezone.utc).isoformat()
     },
     on_conflict="item_code"
 ).execute()
