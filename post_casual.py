@@ -1,5 +1,4 @@
 import os
-from dotenv import load_dotenv
 from post_core import create_post
 from supabase_client import get_supabase
 

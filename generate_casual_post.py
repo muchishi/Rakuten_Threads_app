@@ -1,12 +1,19 @@
 import os
 import time
-from dotenv import load_dotenv
 from google import genai
 from supabase_client import get_supabase
 
 supabase = get_supabase()
 
+recent_topics = (
+    supabase.table("drafts")
+    .select("topic")
+    .order("posted_at", desc=True)
+    .limit(20)
+    .execute()
+)
 
+used_topics = [row["topic"] for row in (recent_topics.data or [])]
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
@@ -17,7 +24,21 @@ client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 prompt = """
 あなたは自然体で共感されるThreadsユーザーです。
 
-以下の条件で雑談投稿を1つ作成してください。
+最近使用したテーマ:
+{", ".join(used_topics)}
+
+上記テーマは避けてください。
+
+新しいテーマで投稿を作成してください。
+出力形式:
+
+TOPIC:
+投稿テーマ
+
+POST:
+投稿本文
+
+投稿本文は、以下の条件で雑談投稿を1つ作成してください。
 
 条件：
 ・80〜120文字
@@ -80,21 +101,26 @@ def generate_with_fallback(prompt):
 # -----------------------
 # 使用例（カジュアル）
 # -----------------------
-post_text = generate_with_fallback(prompt)
+text = generate_with_fallback(prompt)
+
+topic = text.split("POST:")[0].replace("TOPIC:", "").strip()
+
+post = text.split("POST:")[1].strip()
 
 print("生成成功")
 
 print("===== casual post =====")
-print(post_text)
+print(post)
 
 # -----------------------
 # DB保存
 # -----------------------
 supabase.table("drafts").insert(
     {
-        "main_post": post_text,
+        "main_post": post,
         "post_type": "casual",
         "status": "pending",
+        "topic": topic,
     }
 ).execute()
 
