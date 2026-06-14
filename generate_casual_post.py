@@ -30,6 +30,25 @@ prompt = """
 上記テーマは避けてください。
 
 新しいテーマで投稿を作成してください。
+
+この中から1つだけ選択
+テーマ候補:
+散歩
+仕事
+映画
+アニメ
+音楽
+カフェ
+美容
+読書
+旅行
+食事
+買い物
+運動
+季節
+人間関係
+
+
 出力形式:
 
 TOPIC:
@@ -108,6 +127,8 @@ topic = text.split("POST:")[0].replace("TOPIC:", "").strip()
 post = text.split("POST:")[1].strip()
 
 print("生成成功")
+print("===== casual topic =====")
+print(topic)
 
 print("===== casual post =====")
 print(post)
