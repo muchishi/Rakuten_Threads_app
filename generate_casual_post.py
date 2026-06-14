@@ -6,7 +6,7 @@ from supabase_client import get_supabase
 supabase = get_supabase()
 
 recent_topics = (
-    supabase.table("drafts")
+    supabase.table("casual_posted")
     .select("topic")
     .order("posted_at", desc=True)
     .limit(20)

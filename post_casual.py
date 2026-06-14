@@ -5,7 +5,6 @@ from supabase_client import get_supabase
 supabase = get_supabase()
 
 
-
 USER_ID = os.getenv("THREADS_USER_ID")
 TOKEN = os.getenv("THREADS_ACCESS_TOKEN")
 
@@ -31,6 +30,7 @@ if not draft:
 
 draft_id = draft["id"]
 main_post = draft["main_post"]
+topic = draft.get("topic")
 
 print("投稿対象")
 print(main_post)
@@ -50,5 +50,9 @@ if not res:
 supabase.table("drafts").update(
     {"status": "posted"}
 ).eq("id", draft["id"]).execute()
+
+supabase.table("casual_posted").insert(
+    {"topic": topic, "post_text": main_post}
+).execute()
 
 print("雑談投稿完了")
