@@ -1,58 +1,46 @@
-import os
-from post_core import create_post
+# post_casual.py
+"""
+draftsからカジュアル投稿を取り出してThreadsに投稿する
+"""
 from supabase_client import get_supabase
-
-supabase = get_supabase()
-
-
-USER_ID = os.getenv("THREADS_USER_ID")
-TOKEN = os.getenv("THREADS_ACCESS_TOKEN")
+from post_core import create_post
 
 
-result = (
-    supabase.table("drafts")
-    .select("*")
-    .eq("status", "pending")
-    .eq("post_type", "casual")
-    .limit(1)
-    .execute()
-)
+def post_casual() -> None:
+    supabase = get_supabase()
 
-if not result.data:
-    print("投稿対象なし")
-    exit()
+    result = (
+        supabase.table("drafts")
+        .select("*")
+        .eq("status", "pending")
+        .eq("post_type", "casual")
+        .limit(1)
+        .execute()
+    )
 
-draft = result.data[0]
+    if not result.data:
+        print("カジュアル投稿の対象なし")
+        return
 
-if not draft:
-    print("雑談なし")
-    exit()
+    draft = result.data[0]
+    draft_id = draft["id"]
+    main_post = draft["main_post"]
+    topic = draft.get("topic")
 
-draft_id = draft["id"]
-main_post = draft["main_post"]
-topic = draft.get("topic")
+    print(f"投稿対象: {main_post}")
 
-print("投稿対象")
-print(main_post)
+    res = create_post(main_post)
+    if not res:
+        supabase.table("drafts").update({"status": "failed_main"}).eq("id", draft_id).execute()
+        raise Exception("カジュアル投稿失敗")
 
-# -------------------
-# 投稿のみ
-# -------------------
-res = create_post(USER_ID, TOKEN, main_post)
+    supabase.table("drafts").update({"status": "posted"}).eq("id", draft_id).execute()
+    supabase.table("casual_posted").insert(
+        {"topic": topic, "post_text": main_post}
+    ).execute()
 
-if not res:
-    supabase.table("drafts").update(
-        {"status": "failed_main"}
-    ).eq("id", draft["id"]).execute()
-    print("投稿失敗")
-    exit()
+    print("✅ カジュアル投稿完了")
 
-supabase.table("drafts").update(
-    {"status": "posted"}
-).eq("id", draft["id"]).execute()
 
-supabase.table("casual_posted").insert(
-    {"topic": topic, "post_text": main_post}
-).execute()
-
-print("雑談投稿完了")
+if __name__ == "__main__":
+    post_casual()
