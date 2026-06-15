@@ -5,6 +5,7 @@ generate_with_retry が各ファイルに重複していたのをここに集約
 """
 import time
 from google import genai
+from google.genai import types
 from config import GEMINI_API_KEY, GEMINI_PRIMARY_MODEL, GEMINI_FALLBACK_MODEL
 
 _client: genai.Client | None = None
@@ -20,6 +21,7 @@ def get_client() -> genai.Client:
 def generate_with_retry(
     prompt: str,
     model: str,
+    system_instruction: str | None = None,
     retry: int = 6,
     sleep_sec: float = 7.0,
 ) -> str | None:
@@ -28,9 +30,16 @@ def generate_with_retry(
     全リトライ失敗時は None を返す。
     """
     client = get_client()
+    config = (
+        types.GenerateContentConfig(system_instruction=system_instruction)
+        if system_instruction
+        else None
+    )
     for attempt in range(retry):
         try:
-            res = client.models.generate_content(model=model, contents=prompt)
+            res = client.models.generate_content(
+                model=model, contents=prompt, config=config
+            )
             return res.text
         except Exception as e:
             print(f"[{model}] retry {attempt + 1}/{retry} failed: {e}")
@@ -41,6 +50,7 @@ def generate_with_retry(
 
 def generate_with_fallback(
     prompt: str,
+    system_instruction: str | None = None,
     primary_model: str = GEMINI_PRIMARY_MODEL,
     fallback_model: str = GEMINI_FALLBACK_MODEL,
     primary_retry: int = 6,
@@ -50,12 +60,16 @@ def generate_with_fallback(
     プライマリモデルで生成を試み、失敗時はフォールバックモデルに切替。
     両方失敗した場合は Exception を送出。
     """
-    text = generate_with_retry(prompt, primary_model, retry=primary_retry)
+    text = generate_with_retry(
+        prompt, primary_model, system_instruction, retry=primary_retry
+    )
     if text:
         return text
 
     print(f"{primary_model} 失敗 → {fallback_model} へフォールバック")
-    text = generate_with_retry(prompt, fallback_model, retry=fallback_retry, sleep_sec=10.0)
+    text = generate_with_retry(
+        prompt, fallback_model, system_instruction, retry=fallback_retry, sleep_sec=10.0
+    )
     if text:
         return text
 

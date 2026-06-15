@@ -1,12 +1,15 @@
-name: Threads Bot Run
+name: Weekly Keyword Update
 
 on:
   schedule:
-    - cron: "0 */3 * * *"  # 3時間ごと
-  workflow_dispatch:
+    - cron: "0 1 * * 1"  # 毎週月曜 10:00 JST（UTC 01:00）
+  workflow_dispatch:       # 手動実行も可能
+
+permissions:
+  contents: write  # keywords.json のコミット・プッシュに必要
 
 jobs:
-  bot:
+  update:
     runs-on: ubuntu-latest
     env:
       RAKUTEN_APP_ID: ${{ secrets.RAKUTEN_APP_ID }}
@@ -20,6 +23,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -29,17 +34,13 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Debug packages
+      - name: Run keyword update
+        run: python update_keywords.py
+
+      - name: Commit updated keywords.json
         run: |
-          pip list
-          python -c "from google import genai; print('OK')"
-
-      # 初回のみ実行
-      # - name: Create Database
-      #   run: python database.py
-
-      - name: Run bot
-        run: python run.py
-
-      - name: Collect insights
-        run: python collect_insights.py
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add keywords.json
+          git diff --staged --quiet || git commit -m "chore: auto-update keywords [skip ci]"
+          git push

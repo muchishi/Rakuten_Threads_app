@@ -35,9 +35,12 @@ def post_casual() -> None:
         raise Exception("カジュアル投稿失敗")
 
     supabase.table("drafts").update({"status": "posted"}).eq("id", draft_id).execute()
-    supabase.table("casual_posted").insert(
-        {"topic": topic, "post_text": main_post}
-    ).execute()
+    supabase.table("posts").insert({
+        "draft_id":  draft_id,
+        "post_type": "casual",
+        "media_id":  res["media_id"],
+        "topic":     topic,
+    }).execute()
 
     print("✅ カジュアル投稿完了")
 
