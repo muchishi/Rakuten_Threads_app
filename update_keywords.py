@@ -11,6 +11,7 @@ keywords.json を定期的に更新するスクリプト
 4. 新キーワード3つを追加して keywords.json を更新
 """
 import json
+import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -131,6 +132,11 @@ def find_low_performing_keywords(current_keywords: list[str], n: int = 3) -> lis
             return avg_score * (1 + post_rate)
         return 0.0
 
+    # 全キーワードの指標が 0 なら投稿・商品データ不足 → 除外しない
+    if all(perf(kw) == 0.0 for kw in current_keywords):
+        print("  投稿・商品データが不足しているため除外をスキップ（全指標 0）")
+        return []
+
     ranked = sorted(current_keywords, key=perf)
     low = ranked[:n]
 
@@ -155,13 +161,14 @@ def fetch_rakuten_ranking_items() -> list[str]:
     """
     search_words = ["美容", "コスメ", "日用品", "健康"]
     all_names: list[str] = []
-    for word in search_words:
+    for i, word in enumerate(search_words):
+        if i > 0:
+            time.sleep(2.0)  # 429 レートリミット対策
         params = {
             "applicationId": RAKUTEN_APP_ID,
             "accessKey": RAKUTEN_ACCESS_KEY,
             "keyword": word,
             "hits": 8,
-            "sort": "-reviewCount",
             "format": "json",
         }
         try:
@@ -200,7 +207,6 @@ def research_new_keywords(
     }
     season = season_map[month]
 
-    remaining = [kw for kw in current_keywords if kw not in remove_keywords]
     rakuten_summary = "\n".join(f"・{name}" for name in rakuten_top_items[:15])
 
     prompt = f"""
@@ -208,8 +214,8 @@ def research_new_keywords(
 
 以下の情報をもとに、楽天市場の検索キーワードとして使えるトレンドキーワードを{n}つ提案してください。
 
-【現在使用中のキーワード（重複不可）】
-{', '.join(remaining)}
+【現在使用中のキーワード（重複不可・除外対象のキーワードも含む）】
+{', '.join(current_keywords)}
 
 【楽天ランキング上位商品名（参考）】
 {rakuten_summary}
@@ -304,7 +310,8 @@ def run_keyword_update() -> None:
     # Step 4: 更新して保存
     updated = [kw for kw in current if kw not in low_performers]
     for kw in new_keywords:
-        if kw and kw not in updated:
+        # current に含まれるキーワード（除外候補を含む）は追加しない
+        if kw and kw not in current and kw not in updated:
             updated.append(kw)
 
     save_keywords(updated)
