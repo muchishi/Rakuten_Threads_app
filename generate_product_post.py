@@ -5,7 +5,7 @@
 from datetime import datetime, timezone, timedelta
 from supabase_client import get_supabase
 from gemini_client import generate_with_fallback
-from config import CATEGORY_RULES, SCORE_WEIGHTS
+from config import CATEGORY_RULES, SCORE_WEIGHTS, CATEGORY_TARGET_MAP, GEMINI_SYSTEM_PROMPT
 
 
 def get_category(keyword: str) -> str:
@@ -15,6 +15,20 @@ def get_category(keyword: str) -> str:
         if any(k in kw for k in keywords_list):
             return category_name
     return "その他"
+
+
+def determine_post_type(item: dict) -> str:
+    """商品情報から最適な投稿タイプを判定する"""
+    review_count = int(item.get("review_count") or 0)
+    if review_count > 500:
+        return "ランキング型"
+
+    keyword = (item.get("keyword") or "").lower()
+    daily_keywords = ["日用品", "キッチン", "掃除", "洗剤", "生活雑貨"]
+    if any(k in keyword for k in daily_keywords):
+        return "保存型"
+
+    return "共感型"
 
 
 def calc_score(item: dict) -> float:
@@ -28,41 +42,26 @@ def calc_score(item: dict) -> float:
     )
 
 
-def build_main_prompt(item: dict, category: str) -> str:
+def build_main_prompt(item: dict, category: str, post_type: str) -> str:
+    target = CATEGORY_TARGET_MAP.get(category, "楽天でお得に買い物したい人")
     return f"""
-あなたは楽天お得情報を発信する人気Threadsアカウント運営者です。
-
-商品情報
+【商品情報】
 商品名: {item["item_name"]}
 価格: {item["price"]}円
-レビュー件数: {item["review_count"]}
-レビュー評価: {item["review_average"]}
-ショップ名: {item["shop_name"]}
-商品カテゴリ: {category}
+レビュー評価: {item["review_average"]}（{item["review_count"]}件）
+カテゴリ: {category}
 
-以下の条件でThreads投稿文を作成してください。
+【投稿タイプ】
+{post_type}
 
-条件
-・120文字以内
-・広告感を完全に消し、雑談・体験ベース
-・「使ってみた感想」「変化」「周りの反応」を中心にする
-・購買を促す表現は禁止
-・URL禁止
-・PR表記禁止
-・絵文字は最大2〜3個
-・改行多めで読みやすく
+【ターゲット】
+{target}
 
-カテゴリ別ルール
-・健康・ダイエット → 体の変化・継続できている実感
-・食品・飲料 → 味・満足感
-・日用品 → 便利さ・時短
-・美容・コスメ → 以下のいずれか1つ
-    ① 変化（Before/Afterの匂わせ）
-    ② 他人評価（褒められた・気づかれた）
-    ③ 友達に聞かれる系（商品名 or 使用感）
-・寝具・インテリア → 快適さ・リラックス
+【リンク誘導について】
+リンクはリプ欄に掲載するため、本文中では「↓リプ欄のリンクから」や「詳しくはリプ欄に！」と誘導してください。
 
-自然な日常投稿として1つだけ出力してください。
+上記の情報をもとに、Threads投稿の本文のみを出力してください。
+セクションラベルや余分な説明文は不要です。
 """.strip()
 
 
@@ -73,9 +72,11 @@ def generate_product_draft() -> None:
     cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
     posted_codes = {
         row["item_code"]
-        for row in supabase.table("posted_products")
+        for row in supabase.table("posts")
         .select("item_code")
+        .eq("post_type", "product")
         .gte("posted_at", cutoff)
+        .not_.is_("item_code", "null")
         .execute()
         .data
     }
@@ -90,11 +91,15 @@ def generate_product_draft() -> None:
     # スコア最大の商品を選定
     item = max(candidates, key=calc_score)
     category = get_category(item["keyword"])
+    post_type = determine_post_type(item)
 
-    print(f"選定商品: {item['item_name']} (カテゴリ: {category})")
+    print(f"選定商品: {item['item_name']} (カテゴリ: {category}, 投稿タイプ: {post_type})")
 
-    # 投稿文生成
-    main_text = generate_with_fallback(build_main_prompt(item, category))
+    # 投稿文生成（ガイドライン準拠のシステムプロンプトを使用）
+    main_text = generate_with_fallback(
+        build_main_prompt(item, category, post_type),
+        system_instruction=GEMINI_SYSTEM_PROMPT,
+    )
     reply_text = f"楽天のリンクはこちら（PR）\n\n{item['item_url']}"
 
     print("===== メイン投稿 =====")
@@ -102,13 +107,12 @@ def generate_product_draft() -> None:
     print("===== リプ投稿 =====")
     print(reply_text)
 
-    # draftsに保存
+    # draftsに保存（item_url は reply_post テキストに埋め込み済みのため除外）
     supabase.table("drafts").upsert(
         {
             "item_code": item["item_code"],
             "main_post": main_text,
             "reply_post": reply_text,
-            "item_url": item["item_url"],
             "image_url": item.get("image_url"),
             "status": "pending",
             "post_type": "product",

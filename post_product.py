@@ -53,13 +53,13 @@ def post_product() -> None:
 
     # ── 完了処理 ──────────────────────────
     supabase.table("drafts").update({"status": "posted"}).eq("id", draft_id).execute()
-    supabase.table("posted_products").upsert(
-        {
-            "item_code": item_code,
-            "posted_at": datetime.now(timezone.utc).isoformat(),
-        },
-        on_conflict="item_code",
-    ).execute()
+    supabase.table("posts").insert({
+        "draft_id":       draft_id,
+        "post_type":      "product",
+        "media_id":       media_id,
+        "reply_media_id": reply_res["media_id"],
+        "item_code":      item_code,
+    }).execute()
 
     print("✅ 商品投稿完了")
 

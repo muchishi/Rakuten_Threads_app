@@ -35,16 +35,41 @@ def build_casual_prompt(used_topics: list[str]) -> str:
 }}
 
 投稿本文の条件:
-・10〜120文字
+・80〜200文字程度
 ・現在の日本の時刻や季節に違和感がない内容
-・改行を入れて読みやすく
+・1〜2文ごとに改行してスマホで読みやすくする
 ・自然で落ち着いた口調
-・絵文字は1〜2個
-・日常の気づきや疑問
-・商品紹介は禁止
+・絵文字は2〜3個（意味のある箇所にのみ使用）
+・日常の気づき・体験・あるあるエピソード
+・必ず末尾にコメントを誘発する問いかけを1つ入れる
+  （例：「同じ経験した人いる？」「みんなはどうしてる？」「わかる人いたらコメントで教えてほしい」）
+・商品紹介は絶対に禁止
 ・PR表記は絶対に入れない
-・ポジティブまたは共感的な内容
 """.strip()
+
+
+def _escape_json_newlines(s: str) -> str:
+    """JSON文字列値内の生の改行文字をエスケープシーケンスに変換する"""
+    result = []
+    in_string = False
+    escape_next = False
+    for char in s:
+        if escape_next:
+            result.append(char)
+            escape_next = False
+        elif char == "\\":
+            result.append(char)
+            escape_next = True
+        elif char == '"':
+            in_string = not in_string
+            result.append(char)
+        elif in_string and char == "\n":
+            result.append("\\n")
+        elif in_string and char == "\r":
+            result.append("\\r")
+        else:
+            result.append(char)
+    return "".join(result)
 
 
 def parse_casual_response(text: str) -> tuple[str, str]:
@@ -60,10 +85,15 @@ def parse_casual_response(text: str) -> tuple[str, str]:
             cleaned = cleaned[4:]
         cleaned = cleaned.strip()
 
+    # Geminiが文字列値内に生の改行を含むJSONを返す場合の対処
+    cleaned = _escape_json_newlines(cleaned)
+
     try:
         data = json.loads(cleaned)
         topic = data["topic"].strip()
         post = data["post"].strip()
+        # <br>タグが含まれる場合は改行に変換
+        post = post.replace("<br>", "\n")
         return topic, post
     except (json.JSONDecodeError, KeyError) as e:
         raise Exception(f"Geminiレスポンスのパース失敗: {e}\n---\n{text}\n---")
@@ -74,8 +104,10 @@ def generate_casual_draft() -> None:
 
     # 直近20件の使用トピックを取得
     recent = (
-        supabase.table("casual_posted")
+        supabase.table("posts")
         .select("topic")
+        .eq("post_type", "casual")
+        .not_.is_("topic", "null")
         .order("posted_at", desc=True)
         .limit(20)
         .execute()
