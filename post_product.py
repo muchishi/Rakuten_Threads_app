@@ -31,6 +31,11 @@ def post_product() -> None:
     reply_post = draft["reply_post"]
     image_url = draft.get("image_url") or None  # "None"文字列と None を両方吸収
 
+    # Threads API の500文字制限を超える場合は末尾から切り詰め
+    if len(main_post) > 500:
+        suffix = "\n#PR（楽天アフィリエイトリンクを含みます）"
+        main_post = main_post[: 500 - len(suffix)] + suffix
+
     print(f"投稿対象: {main_post}")
 
     # ── メイン投稿 ────────────────────────
