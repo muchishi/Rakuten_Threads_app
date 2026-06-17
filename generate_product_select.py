@@ -4,9 +4,17 @@
 """
 import random
 import time
+from urllib.parse import quote
 import requests
 from supabase_client import get_supabase
 from config import RAKUTEN_APP_ID, RAKUTEN_ACCESS_KEY, RAKUTEN_AFFILIATE_ID, RAKUTEN_API_URL, KEYWORDS
+
+
+def make_affiliate_url(item_url: str) -> str:
+    """itemUrl から楽天アフィリエイト URL を生成する"""
+    parts = RAKUTEN_AFFILIATE_ID.split(".")
+    base = f"{parts[0]}.{parts[1]}"
+    return f"https://hb.afl.rakuten.co.jp/hgc/{base}/?pc={quote(item_url, safe='')}"
 
 # 1回のrunあたり取得するキーワード数の上限
 # 全キーワードを毎回取得すると楽天APIのレートリミット(403)を引き起こすため
@@ -37,7 +45,7 @@ def fetch_and_upsert_products() -> None:
 
         params = {
             "applicationId": RAKUTEN_APP_ID,
-            "affiliateId": RAKUTEN_AFFILIATE_ID,
+            "accessKey": RAKUTEN_ACCESS_KEY,
             "keyword": keyword,
             "hits": 1,
             "format": "json",
@@ -80,7 +88,7 @@ def fetch_and_upsert_products() -> None:
                     "shop_name": item["shopName"],
                     "genre_id": item["genreId"],
                     "keyword": keyword,
-                    "item_url": item.get("affiliateUrl") or item["itemUrl"],
+                    "item_url": make_affiliate_url(item["itemUrl"]),
                     "image_url": None,  # OG画像取得は将来対応
                 },
                 on_conflict="item_code"
