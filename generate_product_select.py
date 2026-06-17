@@ -6,7 +6,7 @@ import random
 import time
 import requests
 from supabase_client import get_supabase
-from config import RAKUTEN_APP_ID, RAKUTEN_ACCESS_KEY, RAKUTEN_API_URL, KEYWORDS
+from config import RAKUTEN_APP_ID, RAKUTEN_ACCESS_KEY, RAKUTEN_AFFILIATE_ID, RAKUTEN_API_URL, KEYWORDS
 
 # 1回のrunあたり取得するキーワード数の上限
 # 全キーワードを毎回取得すると楽天APIのレートリミット(403)を引き起こすため
@@ -37,7 +37,7 @@ def fetch_and_upsert_products() -> None:
 
         params = {
             "applicationId": RAKUTEN_APP_ID,
-            "accessKey": RAKUTEN_ACCESS_KEY,
+            "affiliateId": RAKUTEN_AFFILIATE_ID,
             "keyword": keyword,
             "hits": 1,
             "format": "json",
@@ -80,7 +80,7 @@ def fetch_and_upsert_products() -> None:
                     "shop_name": item["shopName"],
                     "genre_id": item["genreId"],
                     "keyword": keyword,
-                    "item_url": item["itemUrl"],
+                    "item_url": item.get("affiliateUrl") or item["itemUrl"],
                     "image_url": None,  # OG画像取得は将来対応
                 },
                 on_conflict="item_code"

@@ -127,6 +127,7 @@ posts    ──< post_insights (post_id FK, CASCADE)
 |--------|------|----------|
 | `RAKUTEN_APP_ID` | 楽天 API アプリケーション ID | GitHub Secrets / .env |
 | `RAKUTEN_ACCESS_KEY` | 楽天 API アクセスキー | GitHub Secrets / .env |
+| `RAKUTEN_AFFILIATE_ID` | 楽天アフィリエイト ID（アフィリエイト URL 生成に使用） | GitHub Secrets / .env |
 | `GEMINI_API_KEY` | Google Gemini API キー | GitHub Secrets / .env |
 | `THREADS_USER_ID` | Threads ユーザー ID | GitHub Secrets / .env |
 | `THREADS_ACCESS_TOKEN` | Threads アクセストークン | GitHub Secrets / .env |
