@@ -35,10 +35,23 @@ def calc_score(item: dict) -> float:
     """商品のスコアを計算する（高いほど優先して投稿）"""
     w = SCORE_WEIGHTS
     return (
-        item["review_count"] * w["review_count"]
-        + item["review_average"] * w["review_average"]
-        + item["point_rate"] * w["point_rate"]
-        + item["affiliate_rate"] * w["affiliate_rate"]
+        (item.get("review_count") or 0) * w["review_count"]
+        + (item.get("review_average") or 0) * w["review_average"]
+        + (item.get("point_rate") or 0) * w["point_rate"]
+        + (item.get("affiliate_rate") or 0) * w["affiliate_rate"]
+        + (item.get("price") or 0) * w.get("price", 0)
+    )
+
+
+def build_reply_text(item: dict) -> str:
+    """価格・レビュー情報を含むリプライテキストを生成する"""
+    review_str = f"⭐ {item.get('review_average', '?')}（レビュー{(item.get('review_count') or 0):,}件）"
+    price_str = f"💴 {(item.get('price') or 0):,}円"
+    return (
+        f"▼ 楽天で詳細・購入はこちら（PR・楽天アフィリエイトリンク含む）\n\n"
+        f"{review_str}\n"
+        f"{price_str}\n\n"
+        f"{item['item_url']}"
     )
 
 
@@ -103,7 +116,7 @@ def generate_product_draft() -> None:
         build_main_prompt(item, category, post_type),
         system_instruction=GEMINI_SYSTEM_PROMPT,
     )
-    reply_text = f"楽天のリンクはこちら（PR）\n\n{item['item_url']}"
+    reply_text = build_reply_text(item)
 
     print("===== メイン投稿 =====")
     print(main_text)

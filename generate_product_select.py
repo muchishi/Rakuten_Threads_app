@@ -47,7 +47,7 @@ def fetch_and_upsert_products() -> None:
             "applicationId": RAKUTEN_APP_ID,
             "accessKey": RAKUTEN_ACCESS_KEY,
             "keyword": keyword,
-            "hits": 1,
+            "hits": 3,
             "format": "json",
         }
 

@@ -46,6 +46,7 @@ def calc_score(item: dict) -> float:
         + (item.get("review_average") or 0) * w["review_average"]
         + (item.get("point_rate") or 0) * w["point_rate"]
         + (item.get("affiliate_rate") or 0) * w["affiliate_rate"]
+        + (item.get("price") or 0) * w.get("price", 0)
     )
 
 

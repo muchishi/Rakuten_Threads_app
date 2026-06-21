@@ -7,9 +7,28 @@
 - TOPIC/POST パース失敗時に IndexError が発生する脆弱な実装を修正
 """
 import json
+from datetime import datetime, timezone, timedelta
 from supabase_client import get_supabase
 from gemini_client import generate_with_fallback
 from config import CASUAL_THEMES
+
+
+def _get_season_hint(month: int) -> str:
+    hints = {
+        1:  "冬（寒さ・成人式・年明けムード）",
+        2:  "冬（バレンタイン・まだ寒い・受験シーズン）",
+        3:  "春の訪れ（卒業・花粉症・年度末）",
+        4:  "春（新生活・新学期・花見・新社会人）",
+        5:  "初夏（暑くなってきた・GW明けの疲れ）",
+        6:  "梅雨（じめじめ・蒸し暑い・ボーナス月・夏前の準備）",
+        7:  "夏（暑さ本番・夏バテ・夏祭り・花火）",
+        8:  "真夏（猛暑・お盆・夏休み・節電）",
+        9:  "秋の始まり（残暑・運動会・衣替え）",
+        10: "秋（食欲の秋・読書の秋・ハロウィン）",
+        11: "晩秋（朝晩の冷え込み・紅葉・年末準備）",
+        12: "冬（クリスマス・大掃除・年末・忘年会）",
+    }
+    return hints.get(month, "")
 
 
 def build_casual_prompt(used_topics: list[str]) -> str:
@@ -19,8 +38,14 @@ def build_casual_prompt(used_topics: list[str]) -> str:
     """
     used_topics_str = "、".join(used_topics) if used_topics else "なし"
 
+    now_jst = datetime.now(timezone(timedelta(hours=9)))
+    month = now_jst.month
+    season_hint = _get_season_hint(month)
+
     return f"""
 あなたは自然体で共感されるThreadsユーザーです。
+
+現在の時期: {month}月 - {season_hint}
 
 最近使用したテーマ（避けてください）: {used_topics_str}
 
@@ -34,17 +59,20 @@ def build_casual_prompt(used_topics: list[str]) -> str:
   "post": "投稿本文"
 }}
 
-投稿本文の条件:
-・10〜200文字程度
-・現在の日本の時刻や季節に違和感がない内容
+投稿本文の条件（必ず守ること）:
+・150〜350文字（短すぎると読まれない、長すぎると離脱する）
+・現在の時期（{month}月 / {season_hint}）に合った内容にする
+・冒頭1行でスクロールが止まるフックから始める
+  例：「正直に言うと、」「これ言うの恥ずかしいけど」「やっと気づいた」「〇〇な人だけわかる話」
+・具体的なエピソード・数字・状況を入れる（「毎朝必ず」「3年続けて」「先週やらかした」）
 ・1〜2文ごとに改行してスマホで読みやすくする
-・自然で落ち着いた口調
-・絵文字は2〜3個（意味のある箇所にのみ使用）
-・日常の気づき・体験・あるあるエピソード
-・必ず末尾にコメントを誘発する問いかけを1つ入れる
-  （例：「同じ経験した人いる？」「みんなはどうしてる？」「わかる人いたらコメントで教えてほしい」）
-・商品紹介は絶対に禁止
-・PR表記は絶対に入れない
+・親近感のある口調（「〜だよね」「〜じゃない？」「私だけかな笑」）
+・絵文字は2〜3個（意味のある箇所にのみ）
+・必ず末尾にコメントを誘発する具体的な問いかけを1つ入れる
+  良い例：「同じ人いる？」「みんなはどっち？」「これってあるある？」
+  悪い例：「どう思いますか？」「皆さんはいかがでしょうか？」（堅くて読まれない）
+・商品紹介・PR表記は絶対に禁止
+・丁寧語（〜です・ます）は避けてSNSらしいカジュアルな文体で書く
 """.strip()
 
 
