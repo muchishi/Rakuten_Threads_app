@@ -18,7 +18,7 @@ from pathlib import Path
 import requests
 from supabase_client import get_supabase
 from gemini_client import get_client
-from config import RAKUTEN_APP_ID, RAKUTEN_API_URL, KEYWORDS, SCORE_WEIGHTS, CATEGORY_RULES
+from config import RAKUTEN_APP_ID, RAKUTEN_ACCESS_KEY, RAKUTEN_API_URL, KEYWORDS, SCORE_WEIGHTS, CATEGORY_RULES
 
 KEYWORDS_FILE = Path(__file__).parent / "keywords.json"
 MIN_KEYWORDS = 8  # これ以上削除しない安全下限
@@ -167,6 +167,7 @@ def fetch_rakuten_ranking_items() -> list[str]:
             time.sleep(2.0)  # 429 レートリミット対策
         params = {
             "applicationId": RAKUTEN_APP_ID,
+            "accessKey": RAKUTEN_ACCESS_KEY,
             "keyword": word,
             "hits": 8,
             "format": "json",
