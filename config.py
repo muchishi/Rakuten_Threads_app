@@ -14,7 +14,7 @@ load_dotenv()  # ← 全ファイルで呼ぶ代わりにここ1箇所でOK
 RAKUTEN_APP_ID: str = os.environ["RAKUTEN_APP_ID"]
 RAKUTEN_ACCESS_KEY: str = os.environ["RAKUTEN_ACCESS_KEY"]
 RAKUTEN_AFFILIATE_ID: str = os.environ["RAKUTEN_AFFILIATE_ID"]
-RAKUTEN_API_URL: str = "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401"
+RAKUTEN_API_URL: str = "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20170706"
 RAKUTEN_RANKING_URL: str = "https://app.rakuten.co.jp/services/api/IchibaItem/Ranking/20170628"
 
 # keywords.json が存在すればそこから読み込む（update_keywords.py で自動更新される）

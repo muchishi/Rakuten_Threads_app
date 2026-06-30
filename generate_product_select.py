@@ -7,7 +7,7 @@ import time
 from urllib.parse import quote
 import requests
 from supabase_client import get_supabase
-from config import RAKUTEN_APP_ID, RAKUTEN_ACCESS_KEY, RAKUTEN_AFFILIATE_ID, RAKUTEN_API_URL, KEYWORDS
+from config import RAKUTEN_APP_ID, RAKUTEN_AFFILIATE_ID, RAKUTEN_API_URL, KEYWORDS
 
 
 def make_affiliate_url(item_url: str) -> str:
@@ -61,7 +61,6 @@ def fetch_and_upsert_products() -> None:
 
         params = {
             "applicationId": RAKUTEN_APP_ID,
-            "accessKey": RAKUTEN_ACCESS_KEY,
             "keyword": keyword,
             "hits": 3,
             "format": "json",
