@@ -9,7 +9,7 @@ from post_casual import post_casual
 
 # ── 投稿タイプ決定（casual:70% / product:30%）──
 # ガイドライン準拠：アフィリエイト投稿は全体の30%以下
-post_type = "casual" if random.random() < 0.7 else "product"
+post_type = "casual" if random.random() < 0.5 else "product"
 # post_type = "casual"  # テスト時はここで固定
 
 print(f"\n===== ポストタイプ: {post_type} =====\n")
