@@ -2,7 +2,7 @@ name: Weekly Keyword Update
 
 on:
   schedule:
-    - cron: "0 1 * * 1"  # 毎週月曜 10:00 JST（UTC 01:00）
+    - cron: "0 1 * * 1,4"  # 毎週月曜 10:00 JST（UTC 01:00）
   workflow_dispatch:       # 手動実行も可能
 
 permissions:
