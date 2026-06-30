@@ -7,6 +7,21 @@ from supabase_client import get_supabase
 from gemini_client import generate_with_fallback
 from config import CATEGORY_RULES, SCORE_WEIGHTS, CATEGORY_TARGET_MAP, GEMINI_SYSTEM_PROMPT
 
+_SEASON_HINTS = {
+    1:  "冬（寒さ対策・乾燥・成人式シーズン）",
+    2:  "冬（乾燥・バレンタイン・春の準備）",
+    3:  "春の訪れ（花粉症・新生活準備・卒業式）",
+    4:  "春（新生活・入学・紫外線が強くなり始め）",
+    5:  "初夏（日差しが強くなる・GW・汗ばむ季節の入口）",
+    6:  "梅雨〜初夏（蒸し暑い・紫外線ピーク・ボーナス月）",
+    7:  "夏（紫外線・汗・夏バテ対策・夏祭り）",
+    8:  "真夏（猛暑・日焼け・夏休み・冷感グッズ需要）",
+    9:  "秋の始まり（残暑・乾燥が始まる・衣替え）",
+    10: "秋（乾燥肌・読書の秋・ハロウィン）",
+    11: "晩秋（寒くなる・防寒・年末準備）",
+    12: "冬（クリスマス・乾燥・年末ギフト需要）",
+}
+
 
 def get_category(keyword: str) -> str:
     """キーワードからカテゴリ名を返す"""
@@ -57,12 +72,19 @@ def build_reply_text(item: dict) -> str:
 
 def build_main_prompt(item: dict, category: str, post_type: str) -> str:
     target = CATEGORY_TARGET_MAP.get(category, "楽天でお得に買い物したい人")
+    now_jst = datetime.now(timezone(timedelta(hours=9)))
+    month = now_jst.month
+    season_hint = _SEASON_HINTS.get(month, "")
+    review_count = int(item.get("review_count") or 0)
+    social_proof = f"{review_count:,}件のレビューがある" if review_count >= 100 else ""
+
     return f"""
 【商品情報】
 商品名: {item["item_name"]}
-価格: {item["price"]}円
-レビュー評価: {item["review_average"]}（{item["review_count"]}件）
+価格: {(item.get("price") or 0):,}円
+レビュー評価: {item.get("review_average", "?")}（{review_count:,}件）
 カテゴリ: {category}
+現在の時期: {month}月 - {season_hint}
 
 【投稿タイプ】
 {post_type}
@@ -70,8 +92,13 @@ def build_main_prompt(item: dict, category: str, post_type: str) -> str:
 【ターゲット】
 {target}
 
-【リンク誘導について】
-リンクはリプ欄に掲載するため、本文中では「↓リプ欄のリンクから」や「詳しくはリプ欄に！」と誘導してください。
+【社会的証明の使い方】
+{"「" + social_proof + "人気商品」「" + str(review_count) + "人が使っている」などレビュー件数を信頼感の根拠として自然に使ってください。" if social_proof else ""}
+
+【リプ欄の予告（重要）】
+本文末尾でリプ欄に何があるかを具体的に予告してください。
+良い例：「↓リプ欄に価格・レビュー・楽天リンクまとめてます」「値段とリンクはリプ欄で確認できます」
+悪い例：「↓リプ欄から」だけ（何があるかわからないのでクリックされない）
 
 【文字数制限】
 本文は500文字以内（#PR表記を含む）に収めること。

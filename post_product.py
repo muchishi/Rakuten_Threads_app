@@ -40,6 +40,10 @@ def post_product() -> None:
 
     # ── メイン投稿 ────────────────────────
     main_res = create_post(main_post, image_url=image_url)
+    if not main_res and image_url:
+        # 画像付き投稿が失敗した場合はテキストのみで再試行
+        print("⚠️ 画像付き投稿失敗 → テキストのみで再試行")
+        main_res = create_post(main_post, image_url=None)
     if not main_res:
         supabase.table("drafts").update({"status": "failed_main"}).eq("id", draft_id).execute()
         raise Exception("メイン投稿失敗")

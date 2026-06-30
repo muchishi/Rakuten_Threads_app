@@ -8,6 +8,7 @@ post_insights テーブルに保存する
   - posted_at が 30 日以内（古すぎるデータは収集不要）
   - 過去 24 時間以内にすでに取得済みの投稿はスキップ
   - media_id が 'migrated_' で始まる（移行データ）はスキップ
+  - insights_skip = TRUE の投稿はスキップ（削除済みなど取得不能な投稿）
 """
 import time
 from datetime import datetime, timezone, timedelta
@@ -20,19 +21,32 @@ INSIGHTS_URL = "https://graph.threads.net/v1.0/{media_id}/insights"
 METRICS = "views,likes,replies,reposts,quotes"
 
 
-def fetch_insights(media_id: str) -> dict | None:
-    """Threads Insights API を叩いてメトリクスを dict で返す。失敗時は None。"""
+def _is_not_found_error(response_text: str) -> bool:
+    """400 エラーが「投稿が存在しない」ことによるものか判定する"""
+    text = response_text.lower()
+    return "does not exist" in text or "unsupported get request" in text
+
+
+def fetch_insights(media_id: str) -> tuple[dict | None, bool]:
+    """
+    Threads Insights API を叩いてメトリクスを返す。
+    戻り値: (metrics_dict | None, should_skip)
+      - should_skip=True のとき、この投稿は以後スキップすべき（削除済み等）
+    """
     url = INSIGHTS_URL.format(media_id=media_id)
     params = {"metric": METRICS, "access_token": THREADS_ACCESS_TOKEN}
     try:
         res = requests.get(url, params=params, timeout=10)
     except Exception as e:
         print(f"  ⚠️ リクエスト例外 [{media_id}]: {e}")
-        return None
+        return None, False
 
     if res.status_code != 200:
-        print(f"  ⚠️ API エラー [{media_id}]: {res.status_code} {res.text[:120]}")
-        return None
+        if _is_not_found_error(res.text):
+            print(f"  ⚠️ 投稿が存在しないためスキップ登録 [{media_id}]")
+            return None, True
+        print(f"  ⚠️ API エラー [{media_id}]: {res.status_code} {res.text}")
+        return None, False
 
     result = {}
     for item in res.json().get("data", []):
@@ -40,7 +54,7 @@ def fetch_insights(media_id: str) -> dict | None:
         values = item.get("values") or []
         if name and values:
             result[name] = values[0].get("value", 0)
-    return result
+    return result, False
 
 
 def collect_all_insights() -> None:
@@ -55,6 +69,7 @@ def collect_all_insights() -> None:
         .select("id, media_id")
         .gte("posted_at", cutoff_old)
         .lte("posted_at", cutoff_new)
+        .neq("insights_skip", True)
         .execute()
         .data
     )
@@ -80,11 +95,18 @@ def collect_all_insights() -> None:
     print(f"インサイト取得対象: {len(pending)} 件 / 全 {len(target_posts)} 件")
 
     fetched_count = 0
+    skip_count = 0
     for post in pending:
         post_id = post["id"]
         media_id = post["media_id"]
 
-        metrics = fetch_insights(media_id)
+        metrics, should_skip = fetch_insights(media_id)
+
+        if should_skip:
+            supabase.table("posts").update({"insights_skip": True}).eq("id", post_id).execute()
+            skip_count += 1
+            continue
+
         if metrics is None:
             continue
 
@@ -104,7 +126,7 @@ def collect_all_insights() -> None:
         print(f"  ✅ [{media_id}] views:{v}  likes:{l}")
         time.sleep(0.5)  # レートリミット対策
 
-    print(f"\n✅ インサイト取得完了: {fetched_count} 件保存")
+    print(f"\n✅ インサイト取得完了: {fetched_count} 件保存 / {skip_count} 件スキップ登録（削除済み投稿）")
 
 
 if __name__ == "__main__":

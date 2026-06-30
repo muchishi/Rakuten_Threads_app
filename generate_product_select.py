@@ -16,6 +16,22 @@ def make_affiliate_url(item_url: str) -> str:
     base = f"{parts[0]}.{parts[1]}"
     return f"https://hb.afl.rakuten.co.jp/hgc/{base}/?pc={quote(item_url, safe='')}"
 
+
+def extract_image_url(item: dict) -> str | None:
+    """楽天 API レスポンスから商品画像 URL を取得する（フィールド名の揺れに対応）"""
+    for field in ("mediumImageUrls", "smallImageUrls", "imageUrls"):
+        urls = item.get(field) or []
+        if urls and isinstance(urls, list):
+            first = urls[0]
+            url = first.get("imageUrl") if isinstance(first, dict) else str(first)
+            if url and url.startswith("http"):
+                return url
+    for field in ("imageUrl", "itemImageUrl", "image_url"):
+        url = item.get(field)
+        if url and isinstance(url, str) and url.startswith("http"):
+            return url
+    return None
+
 # 1回のrunあたり取得するキーワード数の上限
 # 全キーワードを毎回取得すると楽天APIのレートリミット(403)を引き起こすため
 KEYWORDS_PER_RUN = 3
@@ -89,7 +105,7 @@ def fetch_and_upsert_products() -> None:
                     "genre_id": item["genreId"],
                     "keyword": keyword,
                     "item_url": make_affiliate_url(item["itemUrl"]),
-                    "image_url": None,  # OG画像取得は将来対応
+                    "image_url": extract_image_url(item),
                 },
                 on_conflict="item_code"
             ).execute()
