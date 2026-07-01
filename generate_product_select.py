@@ -55,7 +55,6 @@ def fetch_and_upsert_products() -> None:
         target += has_data[: KEYWORDS_PER_RUN - len(target)]
 
     print(f"検索対象 ({len(target)}/{len(KEYWORDS)}件): {target}")
-    print(f"DEBUG: applicationId length={len(RAKUTEN_APP_ID)}, starts_with={RAKUTEN_APP_ID[:4]}...")
 
     for keyword in target:
         print(f"検索中: {keyword}")

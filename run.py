@@ -18,8 +18,16 @@ try:
     # ── 生成フェーズ ──────────────────────
     if post_type == "product":
         fetch_and_upsert_products()
-        generate_product_draft()
-    elif post_type == "casual":
+        try:
+            generate_product_draft()
+        except Exception as e:
+            if "未投稿商品がありません" in str(e):
+                print("⚠️ 未投稿商品なし → casualに切り替え")
+                post_type = "casual"
+            else:
+                raise
+
+    if post_type == "casual":
         generate_casual_draft()
 
     # ── 投稿フェーズ ──────────────────────
