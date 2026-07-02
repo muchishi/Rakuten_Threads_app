@@ -1,7 +1,6 @@
 import random
 import sys
 
-from generate_product_select import fetch_and_upsert_products
 from generate_product_post import generate_product_draft
 from generate_casual_post import generate_casual_draft
 from post_product import post_product
@@ -17,7 +16,6 @@ print(f"\n===== ポストタイプ: {post_type} =====\n")
 try:
     # ── 生成フェーズ ──────────────────────
     if post_type == "product":
-        fetch_and_upsert_products()
         try:
             generate_product_draft()
         except Exception as e:
