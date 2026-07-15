@@ -49,6 +49,7 @@ python database.py
 |-------------|---------|---------|
 | Threads Bot Run | `run.yml` | 3時間ごと（UTC 0,3,6,...時）/ 手動 |
 | Weekly Keyword Update | `update_keywords.yml` | 毎週月曜 10:00 JST / 手動 |
+| Product Select | `product_select.yml` | 12時間ごと（JST 10:00 / 22:00）/ 手動 |
 
 ### 手動実行
 
