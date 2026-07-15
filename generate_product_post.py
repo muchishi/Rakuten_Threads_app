@@ -58,6 +58,19 @@ def calc_score(item: dict) -> float:
     )
 
 
+PR_NOTICE = "#PR（楽天アフィリエイトリンクを含みます）"
+
+
+def ensure_pr_notice(text: str) -> str:
+    """PR表記が省略・変形されていても必ず正式表記で終わるように補正する（景表法対応）"""
+    if PR_NOTICE in text:
+        return text
+    lines = text.rstrip().splitlines()
+    while lines and (not lines[-1].strip() or lines[-1].strip().lower().startswith("#pr")):
+        lines.pop()
+    return "\n".join(lines).rstrip() + "\n\n" + PR_NOTICE
+
+
 def build_reply_text(item: dict) -> str:
     """価格・レビュー情報を含むリプライテキストを生成する"""
     review_str = f"⭐ {item.get('review_average', '?')}（レビュー{(item.get('review_count') or 0):,}件）"
@@ -75,33 +88,29 @@ def build_main_prompt(item: dict, category: str, post_type: str) -> str:
     now_jst = datetime.now(timezone(timedelta(hours=9)))
     month = now_jst.month
     season_hint = _SEASON_HINTS.get(month, "")
-    review_count = int(item.get("review_count") or 0)
-    social_proof = f"{review_count:,}件のレビューがある" if review_count >= 100 else ""
+    # 保存型・ランキング型は箇条書きを含むぶん少しだけ長さを許容する
+    length_hint = (
+        "250文字前後（箇条書きを含むため）"
+        if post_type in ("保存型", "ランキング型")
+        else "120〜200文字"
+    )
 
     return f"""
 【商品情報】
 商品名: {item["item_name"]}
 価格: {(item.get("price") or 0):,}円
-レビュー評価: {item.get("review_average", "?")}（{review_count:,}件）
 カテゴリ: {category}
 現在の時期: {month}月 - {season_hint}
 
 【投稿タイプ】
 {post_type}
 
-【ターゲット】
+【読み手のイメージ】
 {target}
 
-【社会的証明の使い方】
-{"「" + social_proof + "人気商品」「" + str(review_count) + "人が使っている」などレビュー件数を信頼感の根拠として自然に使ってください。" if social_proof else ""}
-
-【リプ欄の予告（重要）】
-本文末尾でリプ欄に何があるかを具体的に予告してください。
-良い例：「↓リプ欄に価格・レビュー・楽天リンクまとめてます」「値段とリンクはリプ欄で確認できます」
-悪い例：「↓リプ欄から」だけ（何があるかわからないのでクリックされない）
-
-【文字数制限】
-本文は500文字以内（#PR表記を含む）に収めること。
+【文字数の目安】
+{length_hint}（#PR表記を含む）。これより長くしないこと。
+詳しい価格・レビュー・リンクはリプ欄に別途載せるので、本文に詰め込まない。
 
 上記の情報をもとに、Threads投稿の本文のみを出力してください。
 セクションラベルや余分な説明文は不要です。
@@ -139,9 +148,11 @@ def generate_product_draft() -> None:
     print(f"選定商品: {item['item_name']} (カテゴリ: {category}, 投稿タイプ: {post_type})")
 
     # 投稿文生成（ガイドライン準拠のシステムプロンプトを使用）
-    main_text = generate_with_fallback(
-        build_main_prompt(item, category, post_type),
-        system_instruction=GEMINI_SYSTEM_PROMPT,
+    main_text = ensure_pr_notice(
+        generate_with_fallback(
+            build_main_prompt(item, category, post_type),
+            system_instruction=GEMINI_SYSTEM_PROMPT,
+        )
     )
     reply_text = build_reply_text(item)
 
